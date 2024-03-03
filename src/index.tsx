@@ -1,18 +1,17 @@
 import React from 'react';
 import ReactDOM from 'react-dom/client';
-import './index.css';
-import App from './App';
 import reportWebVitals from './reportWebVitals';
-import { register } from 'ruig-type';
-
-register()
+import { RuigRouting } from 'ruig-type';
+import InternalExtension from './InternalExtension';
 
 const root = ReactDOM.createRoot(
   document.getElementById('root') as HTMLElement
 );
+
+
 root.render(
   <React.StrictMode>
-    <App />
+    <RuigRouting extensions={[InternalExtension]} />
   </React.StrictMode>
 );
 

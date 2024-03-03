@@ -1,6 +1,7 @@
 {
   "compilerOptions": {
-    "target": "es5",
+    "module": "ES2015",
+    "target": "ESNext",
     "lib": [
       "dom",
       "dom.iterable",
@@ -13,14 +14,17 @@
     "strict": true,
     "forceConsistentCasingInFileNames": true,
     "noFallthroughCasesInSwitch": true,
-    "module": "esnext",
     "moduleResolution": "node",
     "resolveJsonModule": true,
-    "isolatedModules": true,
-    "noEmit": true,
-    "jsx": "react-jsx"
+    "isolatedModules": false,
+    "noEmit": false,
+    "jsx": "react-jsx",
+    "outDir": "dist",
   },
   "include": [
-    "src"
-  ]
+    "src/InternalExtension.ts"
+  ],
+  //"exclude": [
+  //  "node_modules" /* Exclude node_modules directory */
+ // ]
 }
