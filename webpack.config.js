@@ -1,15 +1,16 @@
 const path = require('path');
 
 module.exports = {
-    entry: './src/InternalExtension.ts', // Entry point of your application
+    entry: 'src/index.tsx', // Entry point of your application
     output: {
         path: path.resolve(__dirname, 'dist'),
         filename: 'bundle.js',
     },
+    devtool: 'source-map',
     resolve: {
         extensions: ['.ts', '.tsx', '.js'], // Resolve TypeScript and JavaScript files
     },
-    mode: "production",
+    mode: "development",
     module: {
         rules: [
             {

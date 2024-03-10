@@ -1,11 +1,11 @@
 {
   "compilerOptions": {
-    "module": "ES2015",
+    "module": "ESNext",
     "target": "ESNext",
     "lib": [
       "dom",
       "dom.iterable",
-      "esnext"
+      "ESNext"
     ],
     "allowJs": true,
     "skipLibCheck": true,
@@ -19,12 +19,9 @@
     "isolatedModules": false,
     "noEmit": false,
     "jsx": "react-jsx",
-    "outDir": "dist",
+    "outDir": "dist"
   },
   "include": [
     "src/InternalExtension.ts"
-  ],
-  //"exclude": [
-  //  "node_modules" /* Exclude node_modules directory */
- // ]
+  ]
 }
