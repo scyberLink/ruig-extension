@@ -11,6 +11,7 @@ const path_1 = __importDefault(require("path"));
 const terser_1 = require("terser");
 const yazl_1 = require("yazl");
 const pkg = require('../package.json');
+const tsconfig = require('../tsconfig.json');
 module.exports = function (argv) {
     commander_1.program.version(pkg.version).usage('<command>');
     commander_1.program
@@ -41,9 +42,6 @@ module.exports = function (argv) {
     commander_1.program.parse(argv);
 };
 async function _package(assetsDir) {
-    const tsConfigFile = './tsconfig.json';
-    const tsConfigFileContent = fs_1.default.readFileSync(tsConfigFile, 'utf8');
-    const tsconfig = JSON.parse(tsConfigFileContent);
     const tsBuildDir = tsconfig?.compilerOptions?.outDir;
     if (!tsBuildDir) {
         throw new Error("Please specify outDir in tsconfig compilerOptions");
@@ -51,14 +49,21 @@ async function _package(assetsDir) {
     if (!(pkg.name &&
         pkg.version &&
         pkg.description &&
-        pkg.publisher)) {
-        throw new Error(`You must specify name, version, description, and publisher in package.json file`);
+        pkg.publisher &&
+        pkg.classname &&
+        pkg.doc)) {
+        throw new Error(`You must specify name, version, description, classname, doc, and publisher in package.json file`);
+    }
+    if (!fs_1.default.existsSync(pkg.doc)) {
+        throw new Error("Please specify or create a valid README.md documentation file in the root in package.json");
     }
     const manifest = {
         name: pkg.name,
         version: pkg.version,
         description: pkg.description,
         publisher: pkg.publisher,
+        classname: pkg.classname,
+        doc: pkg.doc,
     };
     const outDir = `/tmp/${pkg.name}_${pkg.version}_production`;
     const bundleName = 'extension.ruigem';
@@ -73,7 +78,7 @@ async function _package(assetsDir) {
     let importations = [];
     let files = [];
     const ignorePatterns = readIgnorePatterns();
-    const compiled = __package(tsBuildDir, files, importations, ignorePatterns).join('\n\n').trim();
+    const compiled = __package(tsBuildDir, files, importations, ignorePatterns).join('\n\n').trim().concat('\n\n', `new ${manifest.classname}(appContainer)`).replace(/assets\//g, `extension-store/${manifest.publisher}/${manifest.name}/`);
     (0, child_process_1.spawnSync)('rm', ['-rf', outDir]);
     (0, child_process_1.spawnSync)('mkdir', ['-p', outDir]);
     fs_1.default.writeFileSync(bundlePath, compiled);
@@ -82,7 +87,6 @@ async function _package(assetsDir) {
     const result = await (0, terser_1.minify)(compiled, { mangle: true });
     fs_1.default.writeFileSync(minBundlePath, result.code);
     zip(manifest, outDir, assetsDir);
-    (0, child_process_1.spawnSync)('rm', ['-rf', outDir]);
 }
 function __package(directory, files, importations, ignorePatterns) {
     const children = fs_1.default.readdirSync(directory);
@@ -135,43 +139,56 @@ function readIgnorePatterns() {
 }
 async function zip(manifest, outDir, assetsDir) {
     const packagePath = `./${manifest.publisher}.${manifest.name}.v${manifest.version}.rex`;
-    const files = collectFiles(outDir, assetsDir);
-    await writeRex(files, packagePath);
-    const stats = await fs_1.default.promises.stat(packagePath);
-    let size = 0;
-    let unit = '';
-    if (stats.size > 1048576) {
-        size = Math.round(stats.size / 10485.76) / 100;
-        unit = 'MB';
-    }
-    else {
-        size = Math.round(stats.size / 10.24) / 100;
-        unit = 'KB';
-    }
-    console.log(`Packaged: ${packagePath} (${size}${unit})`);
+    const files = collectFiles(outDir, assetsDir, manifest);
+    writeRex(files, packagePath, outDir);
 }
-async function writeRex(files, packagePath) {
-    return await fs_1.default.promises
-        .unlink(packagePath)
-        .catch(async (err) => (err.code !== 'ENOENT' ? await Promise.reject(err) : await Promise.resolve(null)))
-        .then(async () => await new Promise((c, e) => {
+async function writeRex(files, packagePath, outDir) {
+    try {
+        await fs_1.default.promises
+            .unlink(packagePath);
+    }
+    catch (err) {
+        if (err?.code !== 'ENOENT') {
+            throw err;
+        }
+    }
+    new Promise((c, e) => {
         const zip = new yazl_1.ZipFile();
-        files.forEach(f => zip.addFile(f.localPath, f.path, { mode: 0o600 }));
+        files.forEach(f => {
+            zip.addFile(f.localPath, f.path, { mode: 0o600 });
+        });
         zip.end();
         const zipStream = fs_1.default.createWriteStream(packagePath);
         zip.outputStream.pipe(zipStream);
         zip.outputStream.once('error', e);
         zipStream.once('error', e);
-        zipStream.once('finish', c);
-    }));
+        zipStream.once('finish', () => {
+            fs_1.default.promises.stat(packagePath).then(stats => {
+                let size = 0;
+                let unit = '';
+                if (stats.size > 1048576) {
+                    size = Math.round(stats.size / 10485.76) / 100;
+                    unit = 'MB';
+                }
+                else {
+                    size = Math.round(stats.size / 10.24) / 100;
+                    unit = 'KB';
+                }
+                console.log(`Packaged: ${packagePath} (${size}${unit})`);
+            });
+            (0, child_process_1.spawnSync)('rm', ['-rf', outDir]);
+            c(null);
+        });
+    });
 }
-function collectFiles(outDir, assetsDir) {
-    const files = _collectFiles([], assetsDir);
+function collectFiles(outDir, assetsDir, manifest) {
+    const files = _collectFiles([], assetsDir, assetsDir, manifest);
     const children = fs_1.default.readdirSync(outDir);
-    files.push(...children);
-    return [];
+    files.push(...children.map((filename) => ({ localPath: `${outDir}/${filename}`, path: filename })));
+    files.push({ localPath: pkg.doc, path: pkg.doc });
+    return files;
 }
-function _collectFiles(files, directory) {
+function _collectFiles(files, directory, baseDir, manifest) {
     if (fs_1.default.existsSync(directory)) {
         const children = fs_1.default.readdirSync(directory);
         const acceptedFiles = ['.jpg', '.jpeg', '.png', '.pdf'];
@@ -179,11 +196,14 @@ function _collectFiles(files, directory) {
             const filePath = path_1.default.join(directory, item);
             const stat = fs_1.default.statSync(filePath);
             if (stat.isDirectory()) {
-                _collectFiles(files, directory);
+                _collectFiles(files, filePath, baseDir, manifest);
             }
             else {
+                const tmpBaseDir = baseDir.startsWith('./') ? baseDir.substring(2) : baseDir;
+                const splitted = filePath.split(tmpBaseDir);
+                const rexAssetPath = `extension-store/${manifest.publisher}/${manifest.name}${splitted.pop()}`;
                 if (acceptedFiles.some(pattern => filePath.includes(pattern))) {
-                    files.push(filePath);
+                    files.push({ localPath: filePath, path: rexAssetPath });
                 }
                 else {
                     console.warn(`${filePath} not included. Asset not supported. Supported assets includes: jpg, png, pdf`);

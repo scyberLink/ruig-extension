@@ -9,6 +9,7 @@ import { ZipFile } from "yazl";
 import IFile from "./IFile";
 
 const pkg = require('../package.json');
+const tsconfig = require('../tsconfig.json');
 
 module.exports = function (argv: string[]): void {
 	program.version(pkg.version).usage('<command>');
@@ -47,9 +48,6 @@ module.exports = function (argv: string[]): void {
 };
 
 async function _package(assetsDir: string) {
-	const tsConfigFile = './tsconfig.json'
-	const tsConfigFileContent = fs.readFileSync(tsConfigFile, 'utf8');
-	const tsconfig = JSON.parse(tsConfigFileContent)
 	const tsBuildDir = tsconfig?.compilerOptions?.outDir
 
 	if (!tsBuildDir) {
@@ -60,9 +58,15 @@ async function _package(assetsDir: string) {
 		pkg.name &&
 		pkg.version &&
 		pkg.description &&
-		pkg.publisher
+		pkg.publisher &&
+		pkg.classname &&
+		pkg.doc
 	)) {
-		throw new Error(`You must specify name, version, description, and publisher in package.json file`)
+		throw new Error(`You must specify name, version, description, classname, doc, and publisher in package.json file`)
+	}
+
+	if (!fs.existsSync(pkg.doc)) {
+		throw new Error("Please specify or create a valid README.md documentation file in the root in package.json")
 	}
 
 	const manifest: IManifest = {
@@ -70,6 +74,8 @@ async function _package(assetsDir: string) {
 		version: pkg.version,
 		description: pkg.description,
 		publisher: pkg.publisher,
+		classname: pkg.classname,
+		doc: pkg.doc,
 	}
 
 	const outDir = `/tmp/${pkg.name}_${pkg.version}_production`
@@ -89,7 +95,7 @@ async function _package(assetsDir: string) {
 
 	const ignorePatterns = readIgnorePatterns();
 
-	const compiled = __package(tsBuildDir, files, importations, ignorePatterns).join('\n\n').trim()
+	const compiled = __package(tsBuildDir, files, importations, ignorePatterns).join('\n\n').trim().concat('\n\n', `new ${manifest.classname}(appContainer)`).replace(/assets\//g, `extension-store/${manifest.publisher}/${manifest.name}/`)
 
 	spawnSync('rm', ['-rf', outDir])
 	spawnSync('mkdir', ['-p', outDir])
@@ -101,7 +107,7 @@ async function _package(assetsDir: string) {
 	fs.writeFileSync(minBundlePath, result.code as string);
 
 	zip(manifest, outDir, assetsDir)
-	spawnSync('rm', ['-rf', outDir])
+
 }
 
 function __package(directory: string, files: string[], importations: string[], ignorePatterns: RegExp[]): string[] {
@@ -162,58 +168,66 @@ function readIgnorePatterns(): RegExp[] {
 
 async function zip(manifest: IManifest, outDir: string, assetsDir: string) {
 	const packagePath = `./${manifest.publisher}.${manifest.name}.v${manifest.version}.rex`
-	const files: IFile[] = collectFiles(outDir, assetsDir)
-	await writeRex(files, packagePath)
-	const stats = await fs.promises.stat(packagePath);
+	const files: IFile[] = collectFiles(outDir, assetsDir, manifest)
+	writeRex(files, packagePath, outDir)
+}
 
-	let size = 0;
-	let unit = '';
-
-	if (stats.size > 1048576) {
-		size = Math.round(stats.size / 10485.76) / 100;
-		unit = 'MB';
-	} else {
-		size = Math.round(stats.size / 10.24) / 100;
-		unit = 'KB';
+async function writeRex(files: IFile[], packagePath: string, outDir: string) {
+	try {
+		await fs.promises
+			.unlink(packagePath)
+	} catch (err: any) {
+		if (err?.code !== 'ENOENT') {
+			throw err
+		}
 	}
 
-	console.log(`Packaged: ${packagePath} (${size}${unit})`);
+	new Promise((c, e) => {
+		const zip = new ZipFile();
+		files.forEach(f => {
+			zip.addFile(f.localPath, f.path, { mode: 0o600 })
+		});
+		zip.end();
+
+		const zipStream = fs.createWriteStream(packagePath);
+		zip.outputStream.pipe(zipStream);
+
+		zip.outputStream.once('error', e);
+		zipStream.once('error', e);
+		zipStream.once('finish', () => {
+			fs.promises.stat(packagePath).then(stats => {
+
+				let size = 0;
+				let unit = '';
+
+				if (stats.size > 1048576) {
+					size = Math.round(stats.size / 10485.76) / 100;
+					unit = 'MB';
+				} else {
+					size = Math.round(stats.size / 10.24) / 100;
+					unit = 'KB';
+				}
+
+				console.log(`Packaged: ${packagePath} (${size}${unit})`);
+			})
+
+			spawnSync('rm', ['-rf', outDir])
+			c(null)
+		});
+	})
 }
 
-async function writeRex(files: IFile[], packagePath: string) {
-	return await fs.promises
-		.unlink(packagePath)
-		.catch(async (err) => (err.code !== 'ENOENT' ? await Promise.reject(err) : await Promise.resolve(null)))
-		.then(
-			async () =>
-				await new Promise((c, e) => {
-					const zip = new ZipFile();
-					files.forEach(f => zip.addFile(f.localPath, f.path, { mode: 0o600 })
-					);
-					zip.end();
-
-					const zipStream = fs.createWriteStream(packagePath);
-					zip.outputStream.pipe(zipStream);
-
-					zip.outputStream.once('error', e);
-					zipStream.once('error', e);
-					zipStream.once('finish', c);
-				})
-		);
-}
-
-function collectFiles(outDir: string, assetsDir: string): IFile[] {
-	const files = _collectFiles([], assetsDir)
+function collectFiles(outDir: string, assetsDir: string, manifest: IManifest): IFile[] {
+	const files = _collectFiles([], assetsDir, assetsDir, manifest)
 
 	const children = fs.readdirSync(outDir);
 
-	files.push(...children)
-
-
-	return []
+	files.push(...children.map((filename) => ({ localPath: `${outDir}/${filename}`, path: filename })))
+	files.push({ localPath: pkg.doc, path: pkg.doc })
+	return files
 }
 
-function _collectFiles(files: string[], directory: string) {
+function _collectFiles(files: IFile[], directory: string, baseDir: string, manifest: IManifest) {
 	if (fs.existsSync(directory)) {
 		const children = fs.readdirSync(directory);
 		const acceptedFiles = ['.jpg', '.jpeg', '.png', '.pdf']
@@ -223,10 +237,13 @@ function _collectFiles(files: string[], directory: string) {
 			const stat = fs.statSync(filePath);
 
 			if (stat.isDirectory()) {
-				_collectFiles(files, directory);
+				_collectFiles(files, filePath, baseDir, manifest);
 			} else {
+				const tmpBaseDir = baseDir.startsWith('./') ? baseDir.substring(2) : baseDir
+				const splitted = filePath.split(tmpBaseDir)
+				const rexAssetPath = `extension-store/${manifest.publisher}/${manifest.name}${splitted.pop()}`
 				if (acceptedFiles.some(pattern => filePath.includes(pattern))) {
-					files.push(filePath);
+					files.push({ localPath: filePath, path: rexAssetPath });
 				} else {
 					console.warn(`${filePath} not included. Asset not supported. Supported assets includes: jpg, png, pdf`)
 				}
