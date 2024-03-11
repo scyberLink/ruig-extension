@@ -1,9 +1,3 @@
-import { DrawingToolbarItem, registerElement } from "ruig-type";
-import BaseComponent from "ruig-type/layers/view/application/components/base/BaseComponent";
-import IAppContainer from "ruig-type/layers/view/application/components/base/model/IAppContainer";
-import IDrawingCanvas from "ruig-type/layers/view/application/components/base/model/IDrawingCanvas";
-import DesignElement from "ruig-type/layers/view/design/DesignElement";
-
 class PickTool extends DrawingToolbarItem {
 
     activate(e: MouseEvent) {
