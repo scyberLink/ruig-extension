@@ -1,3 +1,8 @@
+import { DrawingToolbarItem, BaseComponent, registerElement } from "ruiged";
+import IAppContainer from "ruiged/layers/view/application/components/base/model/IAppContainer";
+import IDrawingCanvas from "ruiged/layers/view/application/components/base/model/IDrawingCanvas";
+import DesignElement from "ruiged/layers/view/design/DesignElement";
+
 class PickTool extends DrawingToolbarItem {
 
     activate(e: MouseEvent) {
@@ -28,5 +33,6 @@ class PickTool extends DrawingToolbarItem {
         return true as never;
     };
 }
+registerElement('PickTool', PickTool as unknown as any)
 
-export default registerElement('PickTool', PickTool as unknown as any)
+export default PickTool

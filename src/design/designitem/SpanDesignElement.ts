@@ -1,3 +1,7 @@
+import { registerElement } from "ruiged"
+import IAnyObject from "ruiged/common/models/IAnyObject"
+import DesignElementTypes from "ruiged/layers/view/common/DesignElementTypes"
+import DesignElement from "ruiged/layers/view/design/DesignElement"
 
 class LinkDesignElement extends DesignElement {
   type: DesignElementTypes = DesignElementTypes.SPAN
