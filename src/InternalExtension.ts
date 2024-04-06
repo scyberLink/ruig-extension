@@ -1,8 +1,8 @@
-import { BaseExtension } from "ruiged";
+import REI from "ruiged";
 import  PickTool from "./tool/PickTool";
 import IAppContainer from "ruiged/layers/view/application/components/base/model/IAppContainer";
 
-class InternalExtension extends BaseExtension {
+class InternalExtension extends REI.BaseExtension {
     static extensionAuthor = "Ruig";
     static extensionName = "InternalExtension";
     init() {

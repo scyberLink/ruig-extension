@@ -1,5 +1,5 @@
-import { DrawingToolbarItem, registerElement } from "ruiged";
-class PickTool extends DrawingToolbarItem {
+import REI from "ruiged";
+class PickTool extends REI.DrawingToolbarItem {
     activate(e) {
         e.preventDefault();
         alert("Pick tool is active");
@@ -23,5 +23,5 @@ class PickTool extends DrawingToolbarItem {
         return true;
     };
 }
-registerElement('PickTool', PickTool);
+REI.registerElement('PickTool', PickTool);
 export default PickTool;

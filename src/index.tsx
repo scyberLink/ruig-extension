@@ -1,6 +1,6 @@
 import React from 'react';
 import ReactDOM from 'react-dom/client';
-import { RuigRouting } from 'ruiged';
+import REI from 'ruiged';
 import InternalExtension from './InternalExtension';
 
 const root = ReactDOM.createRoot(
@@ -10,7 +10,7 @@ const root = ReactDOM.createRoot(
 
 root.render(
   <React.StrictMode>
-    <RuigRouting extensions={[InternalExtension]} />
+    <REI.RuigRouting extensions={[InternalExtension]} />
   </React.StrictMode>
 );
 

@@ -1,10 +1,8 @@
-import { registerElement } from "ruiged"
+import REI from "ruiged"
 import IAnyObject from "ruiged/common/models/IAnyObject"
-import DesignElementTypes from "ruiged/layers/view/common/DesignElementTypes"
-import DesignElement from "ruiged/layers/view/design/DesignElement"
 
-class LinkDesignElement extends DesignElement {
-  type: DesignElementTypes = DesignElementTypes.SPAN
+class LinkDesignElement extends REI.DesignElement {
+  type = REI.DesignElementTypes.SPAN
 
   constructor(style?: IAnyObject) {
     super({
@@ -16,4 +14,4 @@ class LinkDesignElement extends DesignElement {
   }
 }
 
-export default registerElement('LinkDesignElement', LinkDesignElement as unknown as any)
+export default REI.registerElement('LinkDesignElement', LinkDesignElement as unknown as any)
