@@ -1,16 +1,15 @@
-import React from 'react';
-import ReactDOM from 'react-dom/client';
-import REI from 'ruiged';
-import InternalExtension from './InternalExtension';
+import React from "react";
+import ReactDOM from "react-dom/client";
+import REI from "ruiged";
+import InternalExtension from "./InternalExtension";
 
 const root = ReactDOM.createRoot(
-  document.getElementById('root') as HTMLElement
+  document.getElementById("root") as HTMLElement
 );
-
 
 root.render(
   <React.StrictMode>
-    <REI.RuigRouting extensions={[InternalExtension]} />
+    <REI.App extensions={[InternalExtension]} />
   </React.StrictMode>
 );
 
